@@ -1,14 +1,21 @@
 document.addEventListener("DOMContentLoaded", function () {
   console.log("CreditWise is ready to help you manage your credit!");
 
-  document.querySelectorAll('input[type="number"]').forEach((input) => {
-    input.addEventListener("keypress", function (event) {
-      if (event.key === "Enter") {
-        event.preventDefault(); // Prevent the default Enter key behavior (form submission)
-        calculateUtilization(); // Trigger your existing calculation function
-      }
+  document
+    .querySelectorAll('input[type="number"], input[type="date"]')
+    .forEach((input) => {
+      input.addEventListener("keypress", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault(); // Prevent default form submission on Enter key
+          calculateUtilization(); // Trigger utilization calculation
+        }
+      });
     });
-  });
+
+  // Set the minimum allowable date to today for the payment due date input
+  document
+    .getElementById("dueDate")
+    .setAttribute("min", new Date().toISOString().split("T")[0]);
 });
 
 function calculateUtilization() {
@@ -16,43 +23,71 @@ function calculateUtilization() {
   var currentBalance = parseFloat(
     document.getElementById("currentBalance").value
   );
+  var dueDate = document.getElementById("dueDate").value;
+  var minimumPayment = parseFloat(
+    document.getElementById("minimumPayment").value
+  );
 
-  if (isNaN(creditLimit) || isNaN(currentBalance) || creditLimit <= 0) {
-    alert(
-      "Please enter valid and positive values for credit limit and current balance."
-    );
-    return; // Stop the function if there's invalid input
+  if (
+    isNaN(creditLimit) ||
+    isNaN(currentBalance) ||
+    creditLimit <= 0 ||
+    isNaN(minimumPayment)
+  ) {
+    alert("Please enter valid and positive values for all fields.");
+    return; // Stop execution if any input is invalid
   }
 
-  var idealLimit = creditLimit * 0.3; // Calculate 30% of the credit limit
-  var utilization = (currentBalance / creditLimit) * 100; // Calculate utilization percentage
+  var idealLimit = creditLimit * 0.3; // 30% of credit limit as the ideal limit
+  var utilization = (currentBalance / creditLimit) * 100; // Current utilization percentage
 
-  // Display the results in the HTML
   document.getElementById(
     "newLimit"
-  ).innerText = `Your Ideal Credit Limit Should Be: \$${idealLimit.toFixed(
+  ).innerText = `Your Ideal Credit Limit Should Be: $${idealLimit.toFixed(2)}`;
+  document.getElementById(
+    "utilizationResult"
+  ).innerText = `Your current credit utilization is: ${utilization.toFixed(
     2
-  )} (30% of your total credit limit).`;
-  document.getElementById("utilizationResult").innerText =
-    "Your current credit utilization is: " + utilization.toFixed(2) + "%";
+  )}%`;
 
-  // Provide suggestions based on the 30% ideal limit and calculate over-limit amount and percentage
-  if (currentBalance > idealLimit) {
-    var overLimitAmount = currentBalance - idealLimit;
-    var overLimitPercentage = ((overLimitAmount / creditLimit) * 100).toFixed(
-      2
-    );
+  document.getElementById("suggestion").innerText =
+    currentBalance > idealLimit
+      ? `Your balance is above the ideal 30% by $${(
+          currentBalance - idealLimit
+        ).toFixed(2)}. Consider paying down to improve your credit score.`
+      : "Great job! Your balance is within the ideal limit.";
 
-    document.getElementById("suggestion").innerText =
-      "Your balance is above the ideal 30% by $" +
-      overLimitAmount.toFixed(2) +
-      " (" +
-      overLimitPercentage +
-      "% of your credit limit). Consider paying down to $" +
-      idealLimit.toFixed(2) +
-      " or less to improve your credit score.";
+  calculatePaymentDates(dueDate, minimumPayment);
+}
+
+function calculatePaymentDates(dueDate, minimumPayment) {
+  const today = new Date();
+  const paymentDate = new Date(dueDate);
+  const outputElement = document.getElementById("paymentSuggestion");
+
+  // Set the minimum allowable date to today for the payment due date input
+  document
+    .getElementById("dueDate")
+    .setAttribute("min", new Date().toISOString().split("T")[0]);
+
+  if (paymentDate.getTime() < today.getTime()) {
+    outputElement.innerText = `The due date has already passed. Please select a future date.`;
   } else {
-    document.getElementById("suggestion").innerText =
-      "Great job! Your balance is within the ideal 30% limit.";
+    const daysBeforeDue = 15;
+    const firstPaymentDate = new Date(paymentDate.getTime());
+    firstPaymentDate.setDate(paymentDate.getDate() - daysBeforeDue);
+    const secondPaymentDate = new Date(firstPaymentDate.getTime());
+    secondPaymentDate.setDate(firstPaymentDate.getDate() + 10); // Ensures the second payment is after the first
+
+    const firstPaymentAmount = minimumPayment / 2;
+    const secondPaymentAmount = minimumPayment - firstPaymentAmount;
+
+    outputElement.innerText = `Split your total minimum payment of $${minimumPayment.toFixed(
+      2
+    )} into two parts: Pay $${firstPaymentAmount.toFixed(
+      2
+    )} by ${firstPaymentDate.toLocaleDateString()} and the remainder $${secondPaymentAmount.toFixed(
+      2
+    )} by ${secondPaymentDate.toLocaleDateString()} to optimize your credit score impact.`;
   }
 }
